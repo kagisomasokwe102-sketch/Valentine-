@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>For My Valentine</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --pink: #ffafcc;
+            --red: #ff0a54;
+            --white: #ffffff;
+            --bear-brown: #a67c52;
+            --gold: #ffd700;
+        }
+
+        body { background-color: var(--pink); margin: 0; overflow: hidden; font-family: 'Comic Sans MS', cursive, sans-serif; }
+
+        /* --- FALLING ITEMS --- */
+        .falling-item { position: fixed; top: -150px; z-index: 1; user-select: none; animation: fall linear forwards; }
+        .heart-red { color: #ff0000 !important; font-size: 30px; }
+        
+        .polaroid-frame { 
+            width: 110px; height: 140px; background: white; padding: 8px 8px 20px 8px; 
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.3); display: flex; flex-direction: column; align-items: center; border: 1px solid #ddd;
+        }
+        .polaroid-img { width: 100%; height: 110px; object-fit: cover; background: #f0f0f0; }
+
+        @keyframes fall { to { transform: translateY(120vh) rotate(360deg); } }
+
+        .page { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-height: 100vh; position: absolute; top: 0; padding: 20px; box-sizing: border-box; }
+        #page1 { display: flex; }
+
+        /* --- THE BEAR --- */
+        #bear-unit { position: relative; width: 200px; height: 230px; z-index: 10; transition: transform 0.2s; }
+        .b-head { width: 130px; height: 110px; background: var(--bear-brown); border-radius: 50%; position: absolute; top: 20px; left: 35px; z-index: 10; }
+        .b-ear { width: 45px; height: 45px; background: var(--bear-brown); border-radius: 50%; position: absolute; }
+        .ear-l { top: 10px; left: 30px; } .ear-r { top: 10px; right: 30px; }
+        
+        .eye { width: 20px; height: 20px; background: white; border-radius: 50%; position: absolute; top: 35px; overflow: hidden; transition: height 0.1s; }
+        .eye-l { left: 30px; } .eye-r { right: 30px; }
+        .pupil { width: 10px; height: 10px; background: black; border-radius: 50%; position: absolute; top: 5px; left: 5px; transition: transform 0.1s; }
+        .joy-eyes { animation: sparkle 0.3s infinite alternate; }
+        @keyframes sparkle { from { transform: scale(1); } to { transform: scale(1.3); } }
+
+        .muzzle { width: 55px; height: 45px; background: #ecdcb9; border-radius: 50%; position: absolute; bottom: 10px; left: 38px; z-index: 15; }
+        .nose { width: 16px; height: 10px; background: #333; border-radius: 50%; position: absolute; top: 8px; left: 19px; }
+        .mouth { width: 22px; height: 10px; position: absolute; top: 18px; left: 16px; transition: 0.2s; }
+        .smile { border-bottom: 3px solid #333; border-radius: 0 0 50% 50%; }
+        .frown { border-top: 3px solid #333; border-radius: 50% 50% 0 0; top: 25px; }
+
+        .b-body { width: 150px; height: 130px; background: var(--bear-brown); border-radius: 50% 50% 45% 45%; position: absolute; bottom: 0; left: 25px; z-index: 5; }
+        
+        @keyframes bearJump { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-90px); } }
+        .jumping { animation: bearJump 0.5s infinite ease-out; }
+
+        #speech-bubble { position: absolute; top: -50px; left: 50%; transform: translateX(-50%); background: white; padding: 10px 15px; border-radius: 15px; border: 2px solid var(--red); color: var(--red); font-weight: bold; display: none; z-index: 100; white-space: nowrap; }
+
+        /* --- ENVELOPE --- */
+        .envelope-container { position: relative; width: 300px; height: 200px; cursor: pointer; display: flex; justify-content: center; }
+        .envelope { width: 100%; height: 100%; background: #fff; border: 2px solid var(--red); z-index: 10; display: flex; align-items: center; justify-content: center; color: var(--red); font-weight: bold; border-radius: 5px; }
+        .flap { position: absolute; top: 0; left: 0; border-left: 150px solid transparent; border-right: 150px solid transparent; border-top: 100px solid #f8d7da; z-index: 20; transition: 0.5s; transform-origin: top; }
+        .open .flap { transform: rotateX(180deg); }
+        .letter-content { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); width: 85%; max-width: 480px; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 50px rgba(0,0,0,0.4); color: var(--red); text-align: center; z-index: 1000; transition: 0.5s; visibility: hidden; line-height: 1.6; }
+        .open .letter-content { transform: translate(-50%, -50%) scale(1); visibility: visible; }
+
+        #music-reveal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; padding: 25px; border-radius: 20px; border: 4px solid var(--gold); z-index: 300; text-align: center; }
+        #transition { position: fixed; top: 0; left: -100%; width: 100%; height: 100%; background: white; z-index: 500; display: flex; align-items: center; }
+    </style>
+</head>
+<body>
+
+    <audio id="mySong" loop><source src="music.mp3" type="audio/mpeg"></audio>
+
+    <div id="page1" class="page">
+        <h1 id="header" style="color: var(--red); text-shadow: 2px 2px white;">Will you be my Valentine?</h1>
+        <div id="bear-unit">
+            <div id="speech-bubble"></div>
+            <div class="b-ear ear-l"></div><div class="b-ear ear-r"></div>
+            <div class="b-head">
+                <div class="eye eye-l" id="eyeL"><div class="pupil"></div></div>
+                <div class="eye eye-r" id="eyeR"><div class="pupil"></div></div>
+                <div class="muzzle">
+                    <div class="nose"></div>
+                    <div id="bear-mouth" class="mouth smile"></div>
+                </div>
+            </div>
+            <div class="b-body"></div>
+        </div>
+        <div style="margin-top:40px; display:flex; gap:20px;">
+            <button onclick="doYes()" style="padding:15px 35px; background:var(--red); color:white; border:none; border-radius:30px; cursor:pointer; font-size:1.2rem; font-weight:bold;">Yes</button>
+            <button onclick="doNo()" style="padding:15px 35px; background:white; color:var(--red); border:none; border-radius:30px; cursor:pointer; font-size:1.2rem; font-weight:bold;">No</button>
+        </div>
+    </div>
+
+    <div id="transition"><div style="font-size:80px; position:absolute;" id="ducky">🦆</div></div>
+
+    <div id="page2" class="page">
+        <div class="envelope-container" id="env" onclick="openEnvelope()">
+            <div class="flap"></div>
+            <div class="envelope">Tap to Open 💌</div>
+            <div class="letter-content">
+                "A million reasons exist, but your smile is my favorite. It’s contagious—lighting up my entire world. I know you try to act Non-Chalant, but seeing you truly smile is the highlight of my day. It's the most beautiful thing I've seen. Remember, your smile changes my whole mood......... secret date ??/01/2026 🤭."
+                <br><br><button onclick="event.stopPropagation(); document.getElementById('env').classList.remove('open')" style="cursor:pointer; background:var(--red); color:white; border:none; padding:8px 15px; border-radius:5px;">Close Letter</button>
+            </div>
+        </div>
+        <div style="display:flex; gap:30px; margin-top:30px;">
+            <div onclick="openSpaceGift()" style="cursor:pointer; text-align:center;">🎁<br><small style="color:white">How much i Love you </small></div>
+            <div onclick="openMusicGift('https://youtu.be/x1bZMC2up9Y?si=1g4lyH_4GrIFMF2N', 'All Night')" style="cursor:pointer; text-align:center;">🎁<br><small style="color:white">Beyonce song that reminds me of you </small></div>
+            <div onclick="openMusicGift('https://youtu.be/1UVGu_farV8?si=vNXoKPOFOVFfg4ol', 'Holiday')" style="cursor:pointer; text-align:center;">🎁<br><small style="color:white">Song that Reminds me of you 💗</small></div>
+        </div>
+    </div>
+
+    <div id="page3" class="page" style="background:black; color:white;">
+        <div style="width:200px; height:200px; background:black; border-radius:50%; box-shadow: 0 0 60px #ffaa00, 0 0 100px #ff4400;"></div>
+        <h2 style="color:var(--gold)">TON 618</h2>
+        <p style="text-align:center; max-width:450px; font-size:1.2rem;">TON 618 is the largest thing in the universe. Yet, its scale is tiny compared to my love for you.</p>
+        <button onclick="goBack()" style="background:#444; color:white; border:none; padding:10px 25px; border-radius:10px; cursor:pointer;">← Go Back</button>
+    </div>
+
+    <div id="music-reveal">
+        <div id="qrcode" style="background:white; padding:10px; border-radius:10px;"></div>
+        <p id="song-name" style="color:var(--gold); font-weight:bold;"></p>
+        <button onclick="document.getElementById('music-reveal').style.display='none'; mode='BEARS';" style="color:white; background:none; border:1px solid white; padding:5px; cursor:pointer;">Close</button>
+    </div>
+
+    <script>
+        let mode = "HEARTS";
+        const phrases = ["Please press yes! 🥺", "No doesn't work! 😤", "Pretty please with a cherry on top! 🍒"];
+        let phraseIdx = 0;
+        let isHappy = false;
+
+        // PRE-LOAD ALL IMAGES (1 through 11)
+        const photoCache = [];
+        for(let i=1; i<=11; i++) {
+            const img = new Image();
+            img.src = i + ".jpeg.jpeg";
+            photoCache.push(img);
+        }
+
+        function blink() {
+            const eyes = document.querySelectorAll('.eye');
+            eyes.forEach(e => e.style.height = '2px');
+            setTimeout(() => {
+                eyes.forEach(e => e.style.height = isHappy ? '25px' : '20px');
+            }, 150);
+            setTimeout(blink, isHappy ? 400 : Math.random() * 3000 + 2000);
+        }
+        blink();
+
+        function spawn() {
+            const item = document.createElement('div');
+            item.className = 'falling-item';
+            
+            // PAGE 1: HEARTS & PHOTOS 1-4
+            if (mode === "HEARTS") {
+                if (Math.random() > 0.6) { spawnPhoto(item, 1, 4); } 
+                else { item.innerHTML = "❤"; item.classList.add('heart-red'); }
+            // PAGE 2: BEARS (Default)
+            } else if (mode === "BEARS") {
+                item.innerHTML = "🧸"; item.style.fontSize = "40px";
+            // MUSIC BOX OPEN
+            } else if (mode === "MUSIC") {
+                item.innerHTML = "♫"; item.style.color = "var(--gold)"; item.style.fontSize = "30px";
+            // LETTER OPEN: PHOTOS 5-11
+            } else if (mode === "LETTER_PHOTOS") {
+                spawnPhoto(item, 5, 11);
+            }
+            
+            item.style.left = Math.random() * 95 + "vw";
+            item.style.animationDuration = (Math.random() * 2 + 3) + "s";
+            document.body.appendChild(item);
+            setTimeout(() => item.remove(), 5000);
+        }
+
+        // Helper function for photos with robust loading
+        function spawnPhoto(item, min, max) {
+            const container = document.createElement('div');
+            container.className = 'polaroid-frame';
+            const img = document.createElement('img');
+            img.className = 'polaroid-img';
+            let num = Math.floor(Math.random() * (max - min + 1)) + min;
+            
+            // TRIES .jpeg.jpeg FIRST
+            img.src = "./" + num + ".jpeg.jpeg"; 
+            
+            img.onerror = function() {
+                if (this.src.includes(".jpeg.jpeg")) { this.src = "./" + num + ".jpeg"; }
+                else if (this.src.includes(".jpeg")) { this.src = "./" + num + ".jpg"; }
+                else { 
+                    // Fallback if image completely fails
+                    container.style.display = 'none'; 
+                    item.innerHTML = "❤"; 
+                    item.classList.add('heart-red'); 
+                }
+            };
+            container.appendChild(img);
+            item.appendChild(container);
+        }
+        setInterval(spawn, 500);
+
+        function doNo() {
+            const b = document.getElementById('speech-bubble');
+            const m = document.getElementById('bear-mouth');
+            m.className = "mouth frown";
+            b.innerText = phrases[phraseIdx]; b.style.display = "block";
+            phraseIdx = (phraseIdx + 1) % phrases.length;
+            setTimeout(() => { b.style.display = "none"; if(!isHappy) m.className = "mouth smile"; }, 2000);
+        }
+
+        function doYes() {
+            isHappy = true;
+            document.getElementById('header').innerText = "YAY! ❤️";
+            document.getElementById('bear-mouth').className = "mouth smile";
+            document.getElementById('eyeL').classList.add('joy-eyes');
+            document.getElementById('eyeR').classList.add('joy-eyes');
+            document.getElementById('mySong').play();
+            document.getElementById('bear-unit').classList.add('jumping');
+            
+            // CELEBRATION! (Confetti & Fireworks)
+            confetti({ particleCount: 150, spread: 100, origin: { y: 0.7 } });
+            setTimeout(() => confetti({ particleCount: 80, spread: 60, origin: { x: 0.2, y: 0.5 } }), 500);
+            setTimeout(() => confetti({ particleCount: 80, spread: 60, origin: { x: 0.8, y: 0.5 } }), 1000);
+            
+            setTimeout(() => {
+                const trans = document.getElementById('transition');
+                trans.style.transition = "left 3s ease-in-out"; trans.style.left = "0";
+                let pos = -10;
+                const walk = setInterval(() => {
+                    pos += 1; document.getElementById('ducky').style.left = pos + "%";
+                    if(pos > 115) {
+                        clearInterval(walk);
+                        document.getElementById('page1').style.display = "none";
+                        document.getElementById('page2').style.display = "flex";
+                        mode = "BEARS"; trans.style.left = "100%";
+                    }
+                }, 20);
+            }, 1500);
+        }
+
+        function openEnvelope() {
+            document.getElementById('env').classList.toggle('open');
+            // Trigger photos 5-11 falling for 5 seconds
+            mode = "LETTER_PHOTOS";
+            setTimeout(() => { 
+                // Only reset if they haven't clicked music in the meantime
+                if(mode === "LETTER_PHOTOS") mode = "BEARS"; 
+            }, 5000);
+        }
+
+        function openMusicGift(link, name) {
+            const qDiv = document.getElementById('qrcode'); qDiv.innerHTML = "";
+            new QRCode(qDiv, { text: link, width: 150, height: 150 });
+            document.getElementById('song-name').innerText = name;
+            document.getElementById('music-reveal').style.display = "block";
+            mode = "MUSIC";
+        }
+
+        function openSpaceGift() { document.getElementById('page2').style.display = 'none'; document.getElementById('page3').style.display = 'flex'; }
+        function goBack() { document.getElementById('page3').style.display = 'none'; document.getElementById('page2').style.display = 'flex'; mode = "BEARS"; }
+
+        document.addEventListener('mousemove', (e) => {
+            document.querySelectorAll('.pupil').forEach(p => {
+                const rect = p.parentElement.getBoundingClientRect();
+                const x = rect.left + 10, y = rect.top + 10;
+                const angle = Math.atan2(e.clientX - x, e.clientY - y);
+                p.style.transform = `rotate(${(angle * (180 / Math.PI) * -1) + 180}deg) translateY(-2px)`;
+            });
+        });
+    </script>
+</body>
+</html>
